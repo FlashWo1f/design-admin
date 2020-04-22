@@ -1,14 +1,13 @@
 import request from '@/utils/request';
-import { TableListParams, TableListItem } from './data.d';
+import { TableListParams } from './data.d';
 
 
-// 用户列表
-export async function queryAccount(body?: Object) {
-  return request('/node/user/getalluser', {
-    method: "POST",
+export async function getBookInfo(body?: Object) {
+  return request('/node/book/allbookdetail', {
+    method: 'POST',
     data: {
-      ...body,
-    },
+      ...body
+    }
   })
 }
 
@@ -28,7 +27,7 @@ export async function removeRule(params: { key: number[] }) {
   });
 }
 
-export async function addRule(params: TableListItem) {
+export async function addRule(params: TableListParams) {
   return request('/api/rule', {
     method: 'POST',
     data: {

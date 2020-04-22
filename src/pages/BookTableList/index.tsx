@@ -1,23 +1,24 @@
 import { DownOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Divider, Dropdown, Menu, message, Input } from 'antd';
+import { Button, Divider, Dropdown, Menu, message } from 'antd';
 import React, { useState, useRef } from 'react';
 import { PageHeaderWrapper } from '@ant-design/pro-layout';
 import ProTable, { ProColumns, ActionType } from '@ant-design/pro-table';
-import { SorterResult } from 'antd/es/table/interface';
-
 import CreateForm from './components/CreateForm';
 import UpdateForm, { FormValueType } from './components/UpdateForm';
 import { TableListItem } from './data.d';
-import { queryAccount, updateRule, addRule, removeRule } from './service';
+import { getBookInfo, queryRule, updateRule, addRule, removeRule } from './service';
+import './index.less';
 
 /**
  * 添加节点
  * @param fields
  */
-const handleAdd = async (fields: TableListItem) => {
+const handleAdd = async (fields: FormValueType) => {
   const hide = message.loading('正在添加');
   try {
-    await addRule({ ...fields });
+    await addRule({
+      desc: fields.desc,
+    });
     hide();
     message.success('添加成功');
     return true;
@@ -73,40 +74,61 @@ const handleRemove = async (selectedRows: TableListItem[]) => {
 };
 
 const TableList: React.FC<{}> = () => {
-  const [sorter, setSorter] = useState<string>('');
   const [createModalVisible, handleModalVisible] = useState<boolean>(false);
   const [updateModalVisible, handleUpdateModalVisible] = useState<boolean>(false);
   const [stepFormValues, setStepFormValues] = useState({});
   const actionRef = useRef<ActionType>();
   const columns: ProColumns<TableListItem>[] = [
     {
-      title: '用户信息',
-      dataIndex: 'userName',
-      hideInForm: true,
-      renderText: (field, allFields) => {
+      title: '书籍明细',
+      width: 350,
+      render: (_, allFields) => {
         return (
-          <div style={{height: 40}}>
-            <img src={allFields.avatar} style={{height: '100%', marginRight: 15}} alt=""/>
-            <span>{field}</span>
+          <div className="book-info-wrap">
+            <img src={allFields.book.img} onClick={() => window.open(allFields.book.img)} alt=""/>
+            <div className="book-aside-info">
+              <div className="book-info-item">
+                {allFields.author.label}：<span className="book-info-item-value">{allFields.author.value}</span>
+              </div>
+              <div className="book-info-item">
+                {allFields.originalName.label}：<span className="book-info-item-value">{allFields.originalName.value}</span>
+              </div>
+              <div className="book-info-item">
+                {allFields.publisher.label}：<span className="book-info-item-value">{allFields.publisher.value}</span>
+              </div>
+              <div className="book-info-item">
+                {allFields.translatoer.label}：<span className="book-info-item-value">{allFields.translatoer.value}</span>
+              </div>
+              <div className="book-info-item">
+                {allFields.layout.label}：<span className="book-info-item-value">{allFields.layout.value}</span>
+              </div>
+              <div className="book-info-item">
+                {allFields.pages.label}：<span className="book-info-item-value">{allFields.pages.value}</span>
+              </div>
+            </div>
           </div>
         )
       }
     },
     {
-      title: '账号',
-      dataIndex: 'userId',
-      hideInForm: true,
+      title: 'ISBN',
+      dataIndex: 'ISBN',
     },
     {
-      title: "藏书",
-      dataIndex: "books"
+      title: '评分',
+      dataIndex: ['book', 'score'],
+      sorter: (a, b) => a.book.score - b.book.score,
+      sortDirections: ['descend', 'ascend'],
+    },
+    {
+      title: '价格(元)',
+      dataIndex: ['price', 'value'],
+      sorter: (a, b) => a.price.value - b.price.value,
+      sortDirections: ['descend', 'ascend'],
     },
     {
       title: '创建时间',
-      dataIndex: 'createdAt',
-      sorter: true,
-      hideInForm: true,
-      // renderText: (val: string) => `${val} 万`,
+      dataIndex: 'updatedAt',
     },
     {
       title: '操作',
@@ -116,14 +138,11 @@ const TableList: React.FC<{}> = () => {
         <>
           <a
             onClick={() => {
-              handleUpdateModalVisible(true);
-              setStepFormValues(record);
+              message.warning("建议去网站看...")
             }}
           >
-            配置
+            查看详情
           </a>
-          <Divider type="vertical" />
-          <a href="">订阅警报</a>
         </>
       ),
     },
@@ -132,22 +151,10 @@ const TableList: React.FC<{}> = () => {
   return (
     <PageHeaderWrapper>
       <ProTable<TableListItem>
-        headerTitle="用户表格"
+        headerTitle="查询表格"
         actionRef={actionRef}
-        rowKey="userId"
-        onChange={(_, _filter, _sorter) => {
-          const sorterResult = _sorter as SorterResult<TableListItem>;
-          if (sorterResult.field) {
-            setSorter(`${sorterResult.field}_${sorterResult.order}`);
-          }
-        }}
-        params={{
-          sorter,
-        }}
+        rowKey="ISBN"
         toolBarRender={(action, { selectedRows }) => [
-          // <Button type="primary" onClick={() => handleModalVisible(true)}>
-          //   <PlusOutlined /> 新建
-          // </Button>,
           selectedRows && selectedRows.length > 0 && (
             <Dropdown
               overlay={
@@ -174,35 +181,34 @@ const TableList: React.FC<{}> = () => {
         tableAlertRender={({ selectedRowKeys, selectedRows }) => (
           <div>
             已选择 <a style={{ fontWeight: 600 }}>{selectedRowKeys.length}</a> 项&nbsp;&nbsp;
+            <span>
+              总计 {selectedRows.reduce((pre, item) => pre + Number(item.price.value), 0)} 元
+            </span>
           </div>
         )}
-        request={(params) => queryAccount(params)}
+        request={(params) => getBookInfo(params)}
         columns={columns}
         rowSelection={{}}
       />
-      <CreateForm onCancel={() => handleModalVisible(false)} modalVisible={createModalVisible}>
-        <ProTable<TableListItem, TableListItem>
-          onSubmit={async (value) => {
-            const success = await handleAdd(value);
-            if (success) {
-              handleModalVisible(false);
-              if (actionRef.current) {
-                actionRef.current.reload();
-              }
+      <CreateForm
+        onSubmit={async (value) => {
+          const success = await handleAdd(value);
+          if (success) {
+            handleModalVisible(false);
+            if (actionRef.current) {
+              actionRef.current.reload();
             }
-          }}
-          rowKey="userId"
-          type="form"
-          columns={columns}
-          rowSelection={{}}
-        />
-      </CreateForm>
+          }
+        }}
+        onCancel={() => handleModalVisible(false)}
+        modalVisible={createModalVisible}
+      />
       {stepFormValues && Object.keys(stepFormValues).length ? (
         <UpdateForm
           onSubmit={async (value) => {
             const success = await handleUpdate(value);
             if (success) {
-              handleUpdateModalVisible(false);
+              handleModalVisible(false);
               setStepFormValues({});
               if (actionRef.current) {
                 actionRef.current.reload();

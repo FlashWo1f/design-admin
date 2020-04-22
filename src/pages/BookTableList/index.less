@@ -1,0 +1,14 @@
+.book-info-wrap {
+  display: flex;
+  height: 140px;
+  img {
+    cursor: pointer;
+    margin-right: 15px;
+    width: 100px;
+    height: 100%;
+  }
+  .book-info-item-value:empty::before {
+    content: "暂无";
+    color: gray;
+  }
+}
